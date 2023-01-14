@@ -279,7 +279,7 @@ class MyHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "application/json")
         self.end_headers()
-        json_str = json.dumps(model_response)
+        json_str = json.dumps({'text': model_response['text']})
         self.wfile.write(bytes(json_str, "utf-8"))
 
     def do_GET(self):

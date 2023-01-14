@@ -17,7 +17,7 @@ Contains the following utilities:
 * Beam class which provides some generic beam functionality for classes to use
 """
 import json
-from zipfile import Path
+from pathlib import Path
 
 from typing_extensions import TypedDict
 from parlai.core.params import ParlaiParser

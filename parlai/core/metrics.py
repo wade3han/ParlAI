@@ -41,6 +41,8 @@ BLEU_METRICS = {'bleu-1', 'bleu-2', 'bleu-3', 'bleu-4'}
 DISTINCT_METRICS = {
     'interdistinct-1',
     'interdistinct-2',
+    'interdistinct-3',
+    'interdistinct-4',
     'intradistinct-1',
     'intradistinct-2',
 }
@@ -102,6 +104,12 @@ METRICS_DISPLAY_DATA = {
     ),
     "interdistinct-2": MetricDisplayData(
         "Interdistinct-1", "Fraction of n-grams unique across _all_ generations"
+    ),
+    "interdistinct-3": MetricDisplayData(
+        "Interdistinct-3", "Fraction of n-grams unique across _all_ generations"
+    ),
+    "interdistinct-4": MetricDisplayData(
+        "Interdistinct-4", "Fraction of n-grams unique across _all_ generations"
     ),
     "intradistinct-1": MetricDisplayData(
         "Intradictinct-1", "Fraction of n-grams unique _within_ each utterance"
@@ -1079,15 +1087,17 @@ class TeacherMetrics(Metrics):
                 if 'rouge-L' in self._metrics_list and rL:
                     self.add('rouge_L', rL)
             # compute distinct-k
-            for k in [1, 2]:
+            for k in [1, 2, 3, 4]:
                 if f'interdistinct-{k}' in self._metrics_list:
                     self.add(
                         f'interdistinct-{k}', InterDistinctMetric.compute(prediction, k)
                     )
+
+            for k in [1, 2]:
                 if f'intradistinct-{k}' in self._metrics_list:
-                    self.add(
-                        f'intradistinct-{k}', IntraDistinctMetric.compute(prediction, k)
-                    )
+                  self.add(
+                      f'intradistinct-{k}', IntraDistinctMetric.compute(prediction, k)
+                  )
 
         # Ranking metrics.
         self._update_ranking_metrics(observation, labels)

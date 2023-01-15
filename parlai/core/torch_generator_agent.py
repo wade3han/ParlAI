@@ -502,6 +502,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     return agent
 
   def __init__(self, opt: Opt, shared=None):
+    self.generated_samples = []
     init_model, is_finetune = self._get_init_model(opt, shared)
     super().__init__(opt, shared)
 
@@ -909,9 +910,15 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     log_save_path = Path(self.opt["generation_result_path"]) / file_name
     observations = batch.observations
     for beam_text, observation in zip(beam_texts, observations):
+      episode_done = observation['episode_done']
+      if not episode_done:
+          continue
       context = observation["full_text"]
       gold_response = observation["eval_labels"]
+      image_id = observation['image_id']
+
       result = {
+        "image_id": image_id,
         "context": context,
         "gold_response": gold_response,
         "beam_text": beam_text[0][0],

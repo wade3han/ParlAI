@@ -504,7 +504,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
   def __init__(self, opt: Opt, shared=None):
     self.generated_samples = []
     init_model, is_finetune = self._get_init_model(opt, shared)
-    self.gpt2_tokenizer = None
+    self.gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained('gpt2')
     super().__init__(opt, shared)
 
     self.beam_size = opt.get('beam_size', 1)
@@ -745,8 +745,6 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     loss_flattened = self.criterion(score_view, batch.label_vec.view(-1))
     loss_per_token = loss_flattened.view(scores.shape[:-1])
     notnull = batch.label_vec.ne(self.NULL_IDX)
-    if self.gpt2_tokenizer is None:
-      self.gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained('gpt2')
     eval_labels = [obs['eval_labels'][0] for obs in batch.observations]
     tokenized_eval_labels = [self.gpt2_tokenizer.encode(label) for label in eval_labels]
     adjust_values = torch.stack([torch.sum(nn, dim=0, keepdim=True) / len(label) for

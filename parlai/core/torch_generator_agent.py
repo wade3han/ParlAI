@@ -18,18 +18,18 @@ Contains the following utilities:
 """
 import json
 from pathlib import Path
-
-from typing_extensions import TypedDict
-from parlai.core.params import ParlaiParser
 from abc import ABC, abstractmethod
 from typing import TypeVar, List, Dict, Optional, Tuple, Set, Iterable
 import math
 from operator import attrgetter
 
+from typing_extensions import TypedDict
+import transformers
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from parlai.core.params import ParlaiParser
 from parlai.core.opt import Opt
 from parlai.utils.distributed import is_distributed, sync_parameters
 from parlai.core.torch_agent import TorchAgent, Batch, Output, DictionaryAgent
@@ -504,6 +504,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
   def __init__(self, opt: Opt, shared=None):
     self.generated_samples = []
     init_model, is_finetune = self._get_init_model(opt, shared)
+    self.gpt2_tokenizer = None
     super().__init__(opt, shared)
 
     self.beam_size = opt.get('beam_size', 1)
@@ -744,6 +745,10 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     loss_flattened = self.criterion(score_view, batch.label_vec.view(-1))
     loss_per_token = loss_flattened.view(scores.shape[:-1])
     notnull = batch.label_vec.ne(self.NULL_IDX)
+    if self.gpt2_tokenizer is None:
+      self.gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained('gpt2')
+    import ipdb;
+    ipdb.set_trace();
 
     # save loss to metrics
     # cross entropy loss
@@ -752,6 +757,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     )
     # perplexity
     self.record_local_metric('ppl', PPLMetric.from_mask(loss_per_token, notnull))
+    self.record_local_metric('normalized_ppl', PPLMetric.from_mask(loss_per_token, notnull))
     # token-wise accuracy
     self.record_local_metric(
       'token_acc', AverageMetric.from_mask(batch.label_vec == preds, notnull)

@@ -747,9 +747,11 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     notnull = batch.label_vec.ne(self.NULL_IDX)
     if self.gpt2_tokenizer is None:
       self.gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained('gpt2')
-    import ipdb;
-    ipdb.set_trace();
-
+    eval_labels = [obs['eval_labels'][0] for obs in batch.observations]
+    tokenized_eval_labels = [self.gpt2_tokenizer.encode(label) for label in eval_labels]
+    adjust_values = torch.stack([torch.sum(nn[0], dim=0, keepdim=True) / len(label) for
+                                 nn, label in zip(notnull, tokenized_eval_labels)])
+    loss_per_token_normalized = loss_per_token * adjust_values.unsqueeze(1)
     # save loss to metrics
     # cross entropy loss
     self.record_local_metric(
@@ -757,7 +759,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     )
     # perplexity
     self.record_local_metric('ppl', PPLMetric.from_mask(loss_per_token, notnull))
-    self.record_local_metric('normalized_ppl', PPLMetric.from_mask(loss_per_token, notnull))
+    self.record_local_metric('normalized_ppl', PPLMetric.from_mask(loss_per_token_normalized, notnull))
     # token-wise accuracy
     self.record_local_metric(
       'token_acc', AverageMetric.from_mask(batch.label_vec == preds, notnull)
@@ -918,7 +920,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     for beam_text, observation in zip(beam_texts, observations):
       episode_done = observation['episode_done']
       if not episode_done:
-          continue
+        continue
       context = observation["full_text"]
       gold_response = observation["eval_labels"]
       image_id = observation['image_id']

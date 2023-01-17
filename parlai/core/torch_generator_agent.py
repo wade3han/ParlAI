@@ -751,7 +751,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
     tokenized_eval_labels = [self.gpt2_tokenizer.encode(label) for label in eval_labels]
     adjust_values = torch.stack([torch.sum(nn, dim=0, keepdim=True) / len(label) for
                                  nn, label in zip(notnull, tokenized_eval_labels)])
-    loss_per_token_normalized = loss_per_token * adjust_values.unsqueeze(1)
+    loss_per_token_normalized = loss_per_token * adjust_values
     # save loss to metrics
     # cross entropy loss
     self.record_local_metric(

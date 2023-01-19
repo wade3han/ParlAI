@@ -456,6 +456,14 @@ class TorchGeneratorAgent(TorchAgent, ABC):
             help='if true, compute tokenized bleu scores',
         )
 
+        agent.add_argument('--save-generated-samples', type=bool, default=True,
+                           help='Option to save generated responses from the model after inference.')
+        agent.add_argument('--generation-result-path', type=str,
+                           help='Where to save the generated responses.')
+        agent.add_argument('--num-generated-responses', type=int, default=0,
+                           help='How many responses are you willing to generate by inference.'
+                                'Too big number will delay the training.')
+
         super().add_cmdline_args(parser, partial_opt=partial_opt)
         return agent
 

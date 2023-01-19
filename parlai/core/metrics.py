@@ -41,6 +41,8 @@ DISTINCT_METRICS = {
     'interdistinct-2',
     'intradistinct-1',
     'intradistinct-2',
+    'interdistinct-3',
+    'interdistinct-4',
 }
 ALL_METRICS = DEFAULT_METRICS | ROUGE_METRICS | BLEU_METRICS | DISTINCT_METRICS
 
@@ -97,6 +99,12 @@ METRICS_DISPLAY_DATA = {
     ),
     "interdistinct-2": MetricDisplayData(
         "Interdistinct-1", "Fraction of n-grams unique across _all_ generations"
+    ),
+    "interdistinct-3": MetricDisplayData(
+        "Interdistinct-3", "Fraction of n-grams unique across _all_ generations"
+    ),
+    "interdistinct-4": MetricDisplayData(
+        "Interdistinct-4", "Fraction of n-grams unique across _all_ generations"
     ),
     "intradistinct-1": MetricDisplayData(
         "Intradictinct-1", "Fraction of n-grams unique _within_ each utterance"
@@ -273,6 +281,26 @@ class Metric(ABC):
         if len(set(lengths)) != 1:
             raise IndexError(f'Uneven {cls.__name__} constructions: {lengths}')
         return [cls(*items) for items in zip(*objs)]
+
+    @classmethod
+    def from_mask(
+        cls, metric_per_token: torch.Tensor, mask: torch.Tensor
+    ) -> List[Metric]:
+        """
+        From token-level metrics, returns an aggregate MyMetric per example in the
+        batch.
+        :param metric_per_token:
+            a (batchsize x num_tokens) Tensor
+        :param mask:
+            a (batchsize x num_tokens) Tensor to mask out tokens that should *not* be considered in the aggregate metric calculation.
+        :return:
+            a (batchsize) Tensor
+        """
+        tokens_per_ex = mask.long().sum(dim=-1)
+        metric_per_ex = (metric_per_token * mask).sum(dim=-1)
+        metrics = cls.many(metric_per_ex, tokens_per_ex)
+        return metrics
+
 
 
 class FixedMetric(Metric):
@@ -1028,11 +1056,12 @@ class TeacherMetrics(Metrics):
                 if 'rouge-L' in self._metrics_list and rL:
                     self.add('rouge_L', rL)
             # compute distinct-k
-            for k in [1, 2]:
+            for k in [1, 2, 3, 4]:
                 if f'interdistinct-{k}' in self._metrics_list:
                     self.add(
                         f'interdistinct-{k}', InterDistinctMetric.compute(prediction, k)
                     )
+            for k in [1, 2]:
                 if f'intradistinct-{k}' in self._metrics_list:
                     self.add(
                         f'intradistinct-{k}', IntraDistinctMetric.compute(prediction, k)

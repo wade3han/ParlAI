@@ -16,6 +16,8 @@ Contains the following utilities:
   agents.
 * Beam class which provides some generic beam functionality for classes to use
 """
+import json
+from pathlib import Path
 
 from parlai.core.params import ParlaiParser
 from abc import ABC, abstractmethod
@@ -26,6 +28,7 @@ from operator import attrgetter
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import transformers
 
 from parlai.core.opt import Opt
 from parlai.utils.distributed import is_distributed, sync_parameters
@@ -458,6 +461,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
 
     def __init__(self, opt: Opt, shared=None):
         init_model, is_finetune = self._get_init_model(opt, shared)
+        self.gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained('gpt2')
         super().__init__(opt, shared)
 
         self.beam_size = opt.get('beam_size', 1)
@@ -543,6 +547,35 @@ class TorchGeneratorAgent(TorchAgent, ABC):
             )
 
         self.reset()
+
+    def record_generation_results(self, batch, beam_texts, file_name):
+        # record the generation results on the file.
+        Path(self.opt["generation_result_path"]).mkdir(parents=True, exist_ok=True)
+
+        log_save_path = Path(self.opt["generation_result_path"]) / file_name
+        observations = batch.observations
+        for beam_text, observation in zip(beam_texts, observations):
+            episode_done = observation['episode_done']
+            if not episode_done:
+                continue
+            context = observation["full_text"]
+            gold_response = observation["eval_labels"]
+            image_id = observation['image_id']
+
+            result = {
+                "image_id": image_id,
+                "context": context,
+                "gold_response": gold_response,
+                "beam_text": beam_text[0][0],
+                "score": beam_text[0][1],
+            }
+            self.generated_samples.append(result)
+
+        if len(self.generated_samples) >= self.opt["num_generated_responses"]:
+            with open(log_save_path, "w") as f:
+                json.dump(self.generated_samples, f, indent=4)
+            self.generated_samples = []
+            self.skip_generation = True
 
     def build_criterion(self):
         """
@@ -694,11 +727,22 @@ class TorchGeneratorAgent(TorchAgent, ABC):
         scores, preds, *_ = model_output
         score_view = scores.reshape(-1, scores.size(-1))
         loss = self.criterion(score_view, batch.label_vec.view(-1))
+        loss_per_token = loss.view(scores.shape[:-1])
         loss = loss.view(scores.shape[:-1]).sum(dim=1)
         # save loss to metrics
         notnull = batch.label_vec.ne(self.NULL_IDX)
         target_tokens = notnull.long().sum(dim=-1)
         correct = ((batch.label_vec == preds) * notnull).sum(dim=-1)
+
+        eval_labels = [obs['eval_labels'][0] for obs in batch.observations]
+        tokenized_eval_labels = [self.gpt2_tokenizer.encode(label) for label in eval_labels]
+        adjust_values = torch.stack([torch.sum(nn, dim=0, keepdim=True) / len(label) for
+                                     nn, label in zip(notnull, tokenized_eval_labels)])
+        loss_per_token_normalized = loss * adjust_values
+
+        # perplexity
+        self.record_local_metric('ppl', PPLMetric.from_mask(loss_per_token, notnull))
+        self.record_local_metric('normalized_ppl', PPLMetric.from_mask(loss_per_token_normalized, notnull))
 
         # cross entropy loss
         self.record_local_metric('loss', AverageMetric.many(loss, target_tokens))

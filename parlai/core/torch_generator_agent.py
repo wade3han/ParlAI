@@ -755,7 +755,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
         # cross entropy loss
         self.record_local_metric('loss', AverageMetric.many(loss, target_tokens))
         # perplexity
-        self.record_local_metric('ppl', PPLMetric.many(loss, target_tokens))
+        # self.record_local_metric('ppl', PPLMetric.many(loss, target_tokens))
         # token-wise accuracy
         self.record_local_metric(
             'token_acc', AverageMetric.many(correct, target_tokens)

@@ -468,6 +468,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
         return agent
 
     def __init__(self, opt: Opt, shared=None):
+        self.generated_samples = []
         init_model, is_finetune = self._get_init_model(opt, shared)
         self.gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained('gpt2')
         super().__init__(opt, shared)

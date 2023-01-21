@@ -700,6 +700,8 @@ class ParlaiParser(argparse.ArgumentParser):
                 'test',
                 'test:stream',
                 'test_first_turn',
+                'test_first_turn_inference',
+                'test_inference',
             ],
             help='choose from: train, train:ordered, valid, test. to stream '
             'data add ":stream" to any option (e.g., train:stream). '

@@ -744,7 +744,7 @@ class TorchGeneratorAgent(TorchAgent, ABC):
 
         eval_labels = [obs['eval_labels'][0] for obs in batch.observations]
         tokenized_eval_labels = [self.gpt2_tokenizer.encode(label) for label in eval_labels]
-        adjust_values = torch.stack([torch.sum(nn, dim=0, keepdim=True) / len(label) for
+        adjust_values = torch.stack([torch.sum(nn, dim=0, keepdim=True, dtype=torch.float32) / float(len(label)) for
                                      nn, label in zip(notnull, tokenized_eval_labels)])
         loss_per_token_normalized = loss_per_token * adjust_values
 
@@ -940,6 +940,9 @@ class TorchGeneratorAgent(TorchAgent, ABC):
                     except KeyError:
                         logging.error("Decoding error: %s", tokens)
                         continue
+
+            if self.opt["save_generated_samples"]:
+                self.record_generation_results(batch, beam_texts, file_name="generation.json")
 
         cand_choices = None
         cand_scores = None

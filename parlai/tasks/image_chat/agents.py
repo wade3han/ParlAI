@@ -35,7 +35,7 @@ def _path(opt: Opt) -> Tuple[str, str, str]:
     """
     build(opt)
     dt = opt['datatype'].split(':')[0]
-    if dt in ['train', 'valid', 'test', 'test_first_turn']:
+    if dt in ['train', 'valid', 'test', 'test_first_turn', 'test_first_turn_inference', 'test_inference']:
         data_path = os.path.join(opt['datapath'], 'image_chat/{}.json'.format(dt))
 
     personalities_data_path = os.path.join(
